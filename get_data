@@ -1,0 +1,58 @@
+import requests
+import pandas as pd
+import time
+import numpy as np
+from threading import Timer
+import datetime
+
+
+def get_GaoDeData():
+    print("=====================================================")
+    print('TimeNow:%s' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+	
+    beijing_west_station_url= "https://restapi.amap.com/v3/traffic/status/circle?key=b3f06f4f8f7079e9f4ea180a12e072d6&extensions=all&location=116.322056,39.89491&radius=5000"
+    CBD_url="https://restapi.amap.com/v3/traffic/status/rectangle?key=b3f06f4f8f7079e9f4ea180a12e072d6&extensions=all&rectangle=116.450382,39.903561;116.49109,39.922967"
+    #In order to get the data of different areas, please fill in the corresponding URL address to the following,
+	
+    url= CBD_url
+   
+    #用于储存数据,Store data
+    x=[]
+    #用于标识交通态势线段,Used to identify traffic situation line segment
+    num=0
+     
+    #爬取过程可能会出错中断，因此增加异常处理.Add exception handling
+    try:
+        
+		#开始爬取数据.Start crawling data according to the instructions of AMap development platform.
+        print(url)
+        now = time.strftime("%Y%m%d%H%M",time.localtime(time.time()))
+        data=requests.get(url)
+        s=data.json()
+        a=s["trafficinfo"]["roads"]
+		#the method of extract data,for exampl:  a[k].get('speed')
+        #提取数值需要使用XXX.get()的方式来实现，如a[k].get('speed')
+        
+        for k in range(0,len(a)):
+            s2=a[k]["polyline"]
+            s3=s2.split(";")
+            for l in range(0,len(s3)):
+                s4=s3[l].split(",")
+                x.append([a[k].get('name'),a[k].get('status'),a[k].get('speed'),num,float(s4[0]),float(s4[1]),now])
+            num=num+1
+            
+    except Exception  as e:
+        pass
+
+ 
+    #将数据结构化存储至规定目录的CSV文件中,Storage file
+    c = pd.DataFrame(x)
+    #The default storage location of the file is the same as that of the code
+    #You can manually change the file name to the corresponding area,example,Beijing_west_station,or CBD
+    c.to_csv('CBD'+now+'.csv',encoding='utf-8-sig',index=0,header = ['road','status','speed','number','longitude','latitude','date'])
+	#每隔4分钟提取一次数据,There is set to get data every 4 minutes,time interval can be changed.
+    t = Timer(240, get_GaoDeData)
+    t.start()
+
+if __name__ == "__main__":
+   get_GaoDeData()
